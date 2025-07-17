@@ -36,7 +36,7 @@ from sklearn.ensemble import (
     HistGradientBoostingRegressor
 )
 from sklearn.svm import SVR
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neighbors import KNeighborsRegressor   
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.neural_network import MLPRegressor
 from xgboost import XGBRegressor
@@ -136,3 +136,5 @@ class PipelineBuilder:
             }
 
         return model, metrics
+
+#code is sucessfully able to give the proper metrics following the ML model
