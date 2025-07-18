@@ -1,67 +1,89 @@
-import datetime
+import os
+import pickle
+import json
+import joblib
+import pandas as pd
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import numpy as np
 
-class ReportGenerator:
-    def __init__(self, report_path="octopy_model_report.txt"):
-        self.report_path = report_path
 
-    def _format_metrics(self, metrics_dict):
-        return "\n".join([f"  - {metric}: {value:.4f}" for metric, value in metrics_dict.items()])
+def load_model(model_path):
+    try:
+        if model_path.endswith(".pkl") or model_path.endswith(".sav"):
+            with open(model_path, "rb") as f:
+                model = pickle.load(f)
+        else:
+            model = joblib.load(model_path)
+        return model
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return None
 
-    def _format_hyperparams(self, hyperparams):
-        return "\n".join([f"  - {k}: {v}" for k, v in hyperparams.items()])
 
-    def generate_report(
-        self,
-        models: list,  # list of dicts: [{'name': ..., 'metrics': {...}, 'hyperparams': {...}}]
-        dataset_description: str = None,
-        preprocessing_steps: list = None,
-        issues: list = None,
-        conclusion: str = None
-    ):
-        report_lines = []
+def load_test_data(x_path, y_path):
+    try:
+        X_test = pd.read_csv(x_path)
+        y_test = pd.read_csv(y_path)
+        return X_test, y_test
+    except Exception as e:
+        print(f"Error loading test data: {e}")
+        return None, None
 
-        # Timestamp
-        report_lines.append(f" OCTOPY MODEL REPORT - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        report_lines.append("=" * 60)
 
-        # Dataset
-        if dataset_description:
-            report_lines.append("\n Dataset Description:\n" + dataset_description)
+def evaluate_model(model, X_test, y_test):
+    try:
+        y_pred = model.predict(X_test)
+        mae = mean_absolute_error(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        r2 = r2_score(y_test, y_pred)
+        return {
+            "MAE": round(mae, 4),
+            "MSE": round(mse, 4),
+            "RMSE": round(rmse, 4),
+            "R2_Score": round(r2, 4)
+        }
+    except Exception as e:
+        print(f"Error evaluating model: {e}")
+        return {}
 
-        # Preprocessing
-        if preprocessing_steps:
-            report_lines.append("\n Preprocessing Steps:")
-            for step in preprocessing_steps:
-                report_lines.append(f"  - {step}")
 
-        # Model(s) Reporting
-        for idx, model_info in enumerate(models, 1):
-            report_lines.append(f"\n Model {idx}: {model_info.get('name', 'Unnamed Model')}")
-            report_lines.append("-" * 40)
+def extract_hyperparameters(model):
+    try:
+        if hasattr(model, 'get_params'):
+            all_params = model.get_params()
+            important_keys = ['n_estimators', 'max_depth', 'learning_rate', 'kernel', 'C', 'alpha', 'gamma']
+            return {k: v for k, v in all_params.items() if k in important_keys or isinstance(v, (int, float, str))}
+        return {}
+    except Exception as e:
+        print(f"Error extracting hyperparameters: {e}")
+        return {}
 
-            if model_info.get('metrics'):
-                report_lines.append(" Metrics:")
-                report_lines.append(self._format_metrics(model_info['metrics']))
-            else:
-                report_lines.append(" Metrics: Not provided")
 
-            if model_info.get('hyperparams'):
-                report_lines.append("\n Hyperparameters:")
-                report_lines.append(self._format_hyperparams(model_info['hyperparams']))
+def generate_report(model_path, x_test_path=None, y_test_path=None):
+    model = load_model(model_path)
+    if not model:
+        return
 
-        # Issues / Observations
-        if issues:
-            report_lines.append("\n Known Issues / Observations:")
-            for issue in issues:
-                report_lines.append(f"  - {issue}")
+    report = {
+        "Model Name": os.path.basename(model_path),
+        "Hyperparameters": extract_hyperparameters(model)
+    }
 
-        # Conclusion / Recommendations
-        if conclusion:
-            report_lines.append("\n Conclusion / Notes:")
-            report_lines.append(conclusion)
+    if x_test_path and y_test_path:
+        X_test, y_test = load_test_data(x_test_path, y_test_path)
+        if X_test is not None and y_test is not None:
+            report["Evaluation Metrics"] = evaluate_model(model, X_test, y_test)
+    else:
+        print("Skipping evaluation: X_test or y_test not provided.")
 
-        # Save Report
-        with open(self.report_path, "w") as file:
-            file.write("\n".join(report_lines))
+    output_path = "model_report.json"
+    with open(output_path, "w") as f:
+        json.dump(report, f, indent=4)
 
-        print(f"\n Report generated and saved as: {self.report_path}")
+    print(f"✅ Report saved to {output_path}")
+
+
+# Example usage:
+# generate_report("/path/to/model.pkl", "/path/to/X_test.csv", "/path/to/y_test.csv")
+# generate_report("/path/to/model.pkl")
