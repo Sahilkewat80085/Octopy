@@ -81,7 +81,8 @@ def generate_report(model_path, x_test_path=None, y_test_path=None):
     with open(output_path, "w") as f:
         json.dump(report, f, indent=4)
 
-    print(f"✅ Report saved to {output_path}")
+    print(f"[INFO] Report saved to {output_path}")
+
 
 
 # Example usage:

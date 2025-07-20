@@ -86,7 +86,7 @@ class SmartEDA:
         Run all EDA functions in sequence. If target is provided, includes interaction plots.
         """
         self.basic_info()
-        self.value_counts()
+        self.value_counts()   
         self.distribution_plots()
         self.boxplots()
         self.correlation_heatmap()
